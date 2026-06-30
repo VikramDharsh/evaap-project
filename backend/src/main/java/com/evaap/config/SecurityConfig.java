@@ -65,6 +65,10 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable()) // not needed for a stateless token-based API
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .anonymous(anonymous -> anonymous.disable()) // prevents a "placeholder" authenticated principal from
+                                                              // slipping through .authenticated() checks when no real
+                                                              // JWT auth was set — forces a clean 401 via the entry
+                                                              // point instead of a null principal reaching the controller
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthEntryPoint))
                 .authorizeHttpRequests(auth -> auth
