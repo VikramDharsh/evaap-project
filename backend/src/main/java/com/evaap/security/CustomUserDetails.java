@@ -8,14 +8,17 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Wraps our User entity so Spring Security can work with it.
- * Authorities are prefixed with ROLE_ (Spring Security convention) using
- * the role_name straight from the roles table, e.g. ROLE_CANDIDATE.
+ * Wraps our User entity for Spring Security.
+ * Also implements OAuth2User so it works for both password-based
+ * and Google OAuth2 login paths — Spring Security needs one consistent
+ * principal type across both.
  */
 @Getter
-public class CustomUserDetails implements UserDetails {
+public class CustomUserDetails implements UserDetails,
+        org.springframework.security.oauth2.core.user.OAuth2User {
 
     private final Long userId;
     private final String email;
@@ -69,5 +72,17 @@ public class CustomUserDetails implements UserDetails {
     @Override
     public boolean isEnabled() {
         return active;
+    }
+
+    // OAuth2User interface — required so Spring Security accepts this as a principal
+    // in the OAuth2 login flow as well as the JWT filter flow.
+    @Override
+    public Map<String, Object> getAttributes() {
+        return Map.of("email", email, "userId", userId, "role", roleName);
+    }
+
+    @Override
+    public String getName() {
+        return email;
     }
 }
