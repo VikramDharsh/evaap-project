@@ -39,10 +39,10 @@ public class Education {
     @Column(length = 150)
     private String specialization;
 
-    @Column(name = "start_year", columnDefinition = "YEAR")
+    @Column(name = "start_year")
     private Integer startYear;
 
-    @Column(name = "end_year", columnDefinition = "YEAR")
+    @Column(name = "end_year")
     private Integer endYear;
 
     @Column(precision = 4, scale = 2)

@@ -25,6 +25,17 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: 535718495729-9b345j7em2ln42bmv8hf89pjqhd5gb0i.apps.googleusercontent.com
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+
   jpa:
     hibernate:
       ddl-auto: create
