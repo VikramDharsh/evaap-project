@@ -20,9 +20,9 @@
 #    refresh-token-expiry-ms: 604800000  # 7 days, used later when we build the refresh endpoint
 spring:
   datasource:
-    url: ${postgresql://evaap_db_user:bFgeWx7tX98y2BEjMuG9QmbDw5EvwmlB@dpg-d9e80gurnols73do34c0-a.singapore-postgres.render.com/evaap_db}
-    username: ${evaap_db_user}
-    password: ${bFgeWx7tX98y2BEjMuG9QmbDw5EvwmlB}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -30,17 +30,14 @@ spring:
       ddl-auto: create
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: false
-    properties:
-      hibernate:
-        format_sql: false
 
 server:
   port: 8080
 
 app:
   jwt:
-    secret: ${wMZTHG6t/T5sUAnIDto+CRZrAa3DZK1KpvdauF7xsq4=}
+    secret: ${JWT_SECRET}
     access-token-expiry-ms: 900000
     refresh-token-expiry-ms: 604800000
   oauth2:
-    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:5173/auth/callback}
+    redirect-uri: ${OAUTH2_REDIRECT_URI}
