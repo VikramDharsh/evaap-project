@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/Phase1Demo1
+    url: jdbc:mysql://localhost:3306/Phase1Demo1?useInformationSchema=false
     username: root
-    password: "@Chinmay2708"
+    password: "newpassword123"
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -13,7 +13,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:
