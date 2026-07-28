@@ -1,16 +1,18 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 
-const App = () => (
-  <BrowserRouter>
-    <Routes>
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/login" element={<Login />} />
-      {/* Default redirect to signup */}
-      <Route path="*" element={<Navigate to="/signup" replace />} />
-    </Routes>
-  </BrowserRouter>
-);
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Signup />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
 
 export default App;

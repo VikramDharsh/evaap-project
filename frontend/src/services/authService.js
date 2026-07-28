@@ -2,7 +2,7 @@ import axios from "axios";
 
 /** Axios instance scoped to the auth API */
 const apiClient = axios.create({
-  baseURL: "http://localhost:8080/api/v1",
+  baseURL: "https://evaap-project.onrender.com/api/v1",
   headers: {
     "Content-Type": "application/json",
   },
@@ -14,5 +14,14 @@ const apiClient = axios.create({
  */
 export const registerUser = async (data) => {
   const response = await apiClient.post("/auth/register", data);
+  return response.data;
+};
+
+/**
+ * Logs in an existing user.
+ * @param {{ email: string, password: string }} data
+ */
+export const loginUser = async (data) => {
+  const response = await apiClient.post("/auth/login", data);
   return response.data;
 };

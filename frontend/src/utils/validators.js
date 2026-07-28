@@ -62,3 +62,23 @@ export const validateSignupForm = ({ fullName, email, password, confirmPassword,
 
   return errors;
 };
+
+/**
+ * Validates the login form fields.
+ * Returns an errors object — empty means valid.
+ */
+export const validateLoginForm = ({ email, password }) => {
+  const errors = {};
+
+  if (!isRequired(email)) {
+    errors.email = "Email is required.";
+  } else if (!isValidEmail(email)) {
+    errors.email = "Please enter a valid email address.";
+  }
+
+  if (!isRequired(password)) {
+    errors.password = "Password is required.";
+  }
+
+  return errors;
+};
