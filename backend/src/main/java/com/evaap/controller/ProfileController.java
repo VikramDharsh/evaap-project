@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/v1/profile")
@@ -28,6 +29,16 @@ public class ProfileController {
     ) {
         ProfileResponse response = profileService.getProfile(currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success("Profile fetched", response));
+    }
+    @PostMapping
+    @Operation(summary = "Create profile for the authenticated user (only if no profile exists yet)")
+    public ResponseEntity<ApiResponse<ProfileResponse>> createProfile(
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            @Valid @RequestBody ProfileRequest request
+    ) {
+        ProfileResponse response = profileService.createProfile(currentUser.getUserId(), request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Profile created", response));
     }
 
     @PutMapping

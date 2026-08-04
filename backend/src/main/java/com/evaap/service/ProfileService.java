@@ -9,6 +9,7 @@ import com.evaap.repository.ProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.evaap.entity.User;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +24,45 @@ public class ProfileService {
     public ProfileResponse getProfile(Long userId) {
         Profile profile = profileRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Profile not found for this user"));
+        return toResponse(profile);
+    }
+    @Transactional
+    public ProfileResponse createProfile(Long userId, ProfileRequest request) {
+        // Check if profile already exists — don't allow duplicates
+        if (profileRepository.findByUserId(userId).isPresent()) {
+            throw new DuplicateResourceException("Profile already exists for this user. Use PUT to update it.");
+        }
+
+        if (request.getPhoneNumber() != null
+                && profileRepository.existsByPhoneNumber(request.getPhoneNumber())) {
+            throw new DuplicateResourceException("This phone number is already in use by another account");
+        }
+
+        User user = new User();
+        user.setId(userId);
+
+        Profile profile = Profile.builder()
+                .user(user)
+                .firstName(request.getFirstName() != null ? request.getFirstName() : "")
+                .lastName(request.getLastName() != null ? request.getLastName() : "")
+                .phoneNumber(request.getPhoneNumber() != null ? request.getPhoneNumber() : "")
+                .middleName(request.getMiddleName())
+                .dateOfBirth(request.getDateOfBirth())
+                .profession(request.getProfession())
+                .bio(request.getBio())
+                .addressLine1(request.getAddressLine1())
+                .addressLine2(request.getAddressLine2())
+                .city(request.getCity())
+                .state(request.getState())
+                .pincode(request.getPincode())
+                .profileCompletionPercentage(0)
+                .build();
+
+        profile = profileRepository.save(profile);
+        // Recalculate after save so completion % reflects actual data
+        profile.setProfileCompletionPercentage(calculateCompletion(profile));
+        profile = profileRepository.save(profile);
+
         return toResponse(profile);
     }
 
