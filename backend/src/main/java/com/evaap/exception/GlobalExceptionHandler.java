@@ -51,6 +51,14 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Validation failed", fieldErrors));
     }
 
+    @ExceptionHandler(EmailVerificationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleEmailVerification(
+            EmailVerificationException ex) {
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneric(Exception ex) {
         // Catch-all so an unhandled NPE etc. never leaks a raw stack trace to the client.

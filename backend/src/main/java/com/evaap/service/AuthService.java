@@ -2,8 +2,11 @@ package com.evaap.service;
 
 import com.evaap.dto.request.LoginRequest;
 import com.evaap.dto.request.RegisterRequest;
+import com.evaap.dto.request.ResendOtpRequest;
+import com.evaap.dto.request.VerifyEmailRequest;
 import com.evaap.dto.response.AuthResponse;
 import com.evaap.dto.response.UserResponse;
+import com.evaap.entity.EmailVerification;
 import com.evaap.entity.Profile;
 import com.evaap.entity.RefreshToken;
 import com.evaap.entity.Role;
@@ -12,6 +15,7 @@ import com.evaap.exception.DuplicateResourceException;
 import com.evaap.exception.InvalidCredentialsException;
 import com.evaap.exception.InvalidTokenException;
 import com.evaap.exception.ResourceNotFoundException;
+import com.evaap.repository.EmailVerificationRepository;
 import com.evaap.repository.ProfileRepository;
 import com.evaap.repository.RefreshTokenRepository;
 import com.evaap.repository.RoleRepository;
@@ -25,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.UUID;
@@ -37,13 +42,19 @@ public class AuthService {
     private final ProfileRepository profileRepository;
     private final RoleRepository roleRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final EmailVerificationRepository emailVerificationRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final EmailService emailService;
 
     @Value("${app.jwt.refresh-token-expiry-ms:604800000}")
     private long refreshTokenExpiryMs;
 
+    @Value("${app.otp.expiry-minutes:10}")
+    private long otpExpiryMinutes;
+
     private static final String DEFAULT_ROLE = "CANDIDATE";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -72,8 +83,7 @@ public class AuthService {
                 .role(role)
                 .email(request.getEmail().toLowerCase().trim())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .accountStatus(User.AccountStatus.ACTIVE) // OTP flow skipped for now — see note in AuthService
-                .emailVerifiedAt(LocalDateTime.now())
+                .accountStatus(User.AccountStatus.PENDING) // stays PENDING until OTP verified below
                 .isActive(true)
                 .build();
 
@@ -89,6 +99,8 @@ public class AuthService {
 
         profileRepository.save(profile);
 
+        issueAndSendOtp(user);
+
         return buildAuthResponse(user, profile);
     }
 
@@ -99,6 +111,10 @@ public class AuthService {
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new InvalidCredentialsException("Invalid email or password");
+        }
+
+        if (user.getAccountStatus() == User.AccountStatus.PENDING) {
+            throw new InvalidCredentialsException("Please verify your email before logging in");
         }
 
         if (user.getDeletedAt() != null
@@ -113,6 +129,56 @@ public class AuthService {
         Profile profile = profileRepository.findByUserId(user.getId()).orElse(null);
 
         return buildAuthResponse(user, profile);
+    }
+
+    @Transactional
+    public void verifyEmail(VerifyEmailRequest request) {
+        User user = userRepository.findByEmail(request.getEmail().toLowerCase().trim())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (user.getAccountStatus() != User.AccountStatus.PENDING) {
+            // Already verified — treat as a no-op success rather than an error,
+            // so a double-tap or a stale frontend retry doesn't surface a scary message.
+            return;
+        }
+
+        EmailVerification verification = emailVerificationRepository
+                .findTopByUserIdAndIsVerifiedFalseOrderByCreatedAtDesc(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("No pending verification found. Please request a new code."));
+
+        if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new InvalidTokenException("This code has expired. Please request a new one.");
+        }
+
+        if (!hashToken(request.getOtp()).equals(verification.getOtpHash())) {
+            throw new InvalidTokenException("Invalid verification code");
+        }
+
+        verification.setIsVerified(true);
+        emailVerificationRepository.save(verification);
+
+        user.setAccountStatus(User.AccountStatus.ACTIVE);
+        user.setEmailVerifiedAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void resendOtp(ResendOtpRequest request) {
+        User user = userRepository.findByEmail(request.getEmail().toLowerCase().trim())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (user.getAccountStatus() != User.AccountStatus.PENDING) {
+            return; // already verified — nothing to resend
+        }
+
+        // Invalidate any existing unverified OTP so only the newest one is usable.
+        emailVerificationRepository.findTopByUserIdAndIsVerifiedFalseOrderByCreatedAtDesc(user.getId())
+                .ifPresent(old -> {
+                    old.setIsVerified(true);
+                    emailVerificationRepository.save(old);
+                });
+
+        issueAndSendOtp(user);
     }
 
     @Transactional
@@ -155,6 +221,26 @@ public class AuthService {
     }
 
     // --- helpers ---
+
+    private void issueAndSendOtp(User user) {
+        String rawOtp = generateOtp();
+
+        EmailVerification verification = EmailVerification.builder()
+                .user(user)
+                .otpHash(hashToken(rawOtp))
+                .verificationToken(UUID.randomUUID().toString())
+                .expiresAt(LocalDateTime.now().plusMinutes(otpExpiryMinutes))
+                .isVerified(false)
+                .build();
+        emailVerificationRepository.save(verification);
+
+        emailService.sendOtpEmail(user.getEmail(), rawOtp);
+    }
+
+    private String generateOtp() {
+        int otp = SECURE_RANDOM.nextInt(1_000_000); // 0 - 999999
+        return String.format("%06d", otp);
+    }
 
     private AuthResponse buildAuthResponse(User user, Profile profile) {
         String accessToken = jwtTokenProvider.generateAccessToken(

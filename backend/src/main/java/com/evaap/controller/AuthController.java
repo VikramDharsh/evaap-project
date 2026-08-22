@@ -3,6 +3,8 @@ package com.evaap.controller;
 import com.evaap.dto.request.LoginRequest;
 import com.evaap.dto.request.RefreshTokenRequest;
 import com.evaap.dto.request.RegisterRequest;
+import com.evaap.dto.request.ResendOtpRequest;
+import com.evaap.dto.request.VerifyEmailRequest;
 import com.evaap.dto.response.ApiResponse;
 import com.evaap.dto.response.AuthResponse;
 import com.evaap.dto.response.UserResponse;
@@ -30,18 +32,18 @@ public class AuthController {
     @PostMapping("/register")
     @Operation(summary = "Register a new candidate/employer account")
     @ApiResponses(value = {
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                            responseCode = "201",
-                            description = "Account created successfully"
-                    ),
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                            responseCode = "400",
-                            description = "Validation failed"
-                    ),
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                            responseCode = "409",
-                            description = "An account with this email already exists"
-                    )
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "201",
+                    description = "Account created successfully"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation failed"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "409",
+                    description = "An account with this email already exists"
+            )
     })
     public ResponseEntity<ApiResponse<AuthResponse>> register(
             @Valid @RequestBody RegisterRequest request) {
@@ -49,7 +51,7 @@ public class AuthController {
         AuthResponse response = authService.register(request);
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Account created successfully", response));
+                .body(ApiResponse.success("Account created. Check your email for a verification code.", response));
     }
 
     @PostMapping("/login")
@@ -82,21 +84,31 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Current user fetched", response));
     }
 
-    // --- Stubbed for now: OTP/email verification deliberately skipped in this phase. ---
-    // Accounts are marked ACTIVE + email-verified immediately at registration instead.
-    // Wire these up once SMTP (or a transactional email provider) is set up.
-
     @PostMapping("/verify-email")
-    @Operation(summary = "(Not yet implemented) Verify email via OTP")
-    public ResponseEntity<ApiResponse<Void>> verifyEmail() {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-                .body(ApiResponse.error("Email verification is not enabled yet — accounts are auto-verified at registration."));
+    @Operation(summary = "Verify email using the 6-digit OTP sent at registration")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Email verified (or was already verified)"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid or expired OTP"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "No account or pending verification found for this email"
+            )
+    })
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        authService.verifyEmail(request);
+        return ResponseEntity.ok(ApiResponse.success("Email verified successfully"));
     }
 
     @PostMapping("/resend-otp")
-    @Operation(summary = "(Not yet implemented) Resend verification OTP")
-    public ResponseEntity<ApiResponse<Void>> resendOtp() {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-                .body(ApiResponse.error("OTP flow is not enabled yet — accounts are auto-verified at registration."));
+    @Operation(summary = "Invalidate the current OTP and send a new one")
+    public ResponseEntity<ApiResponse<Void>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
+        authService.resendOtp(request);
+        return ResponseEntity.ok(ApiResponse.success("A new verification code has been sent."));
     }
 }
